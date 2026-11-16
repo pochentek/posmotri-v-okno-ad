@@ -8,6 +8,25 @@ html {
   block-size: 100%;
 }
 
+h1,
+h2,
+h3,
+h4,
+p,
+ul,
+ol,
+li,
+blockquote,
+fieldset {
+  margin: 0;
+  padding: 0;
+}
+
+ul,
+ol {
+  list-style: none;
+}
+
 .page {
   display: flex;
   align-items: center;
@@ -94,6 +113,7 @@ html {
   border-radius: 0;
   color: #fff;
   font: inherit;
+  line-height: 1.5;
   background: transparent;
   appearance: none;
 }
@@ -199,6 +219,7 @@ html {
 .content__list {
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   gap: 30px;
 }
 
@@ -271,28 +292,12 @@ html {
 }
 
 .more-button {
+  flex-shrink: 0;
   width: 100%;
   min-height: 34px;
 }
 
-h1,
-h2,
-h3,
-h4,
-p,
-ul,
-ol,
-li,
-blockquote,
-fieldset {
-  margin: 0;
-  padding: 0;
-}
 
-ul,
-ol {
-  list-style: none;
-}
 
 /* Кастомный скроллбар */
 .custom-scrollbar::-webkit-scrollbar {
