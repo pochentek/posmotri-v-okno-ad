@@ -59,7 +59,7 @@ form.onsubmit = (e) => {
 
 async function mainMechanics(endpoint) {
   try {
-    const data = await (await fetch(endpoint)).json();
+    const data = await fetchVideoData(endpoint);
     cardsOnPageState = data.results;
 
     if (!data?.results?.[0]) {
@@ -83,6 +83,9 @@ async function mainMechanics(endpoint) {
       .querySelectorAll('.content__card-link')[0]
       .classList.add('content__card-link_current');
     await waitForReadyVideo(videoElement);
+    if (videoElement.error) {
+      showError(videoContainer, videoNotFoundTmp, 'Не удалось загрузить видео');
+    }
     await delay(preloaderWaitindTime);
     removePreloader(videoContainer, '.preloader');
     removePreloader(cardsContainer, '.preloader');
@@ -133,12 +136,37 @@ async function delay(ms) {
 
 async function waitForReadyVideo(video) {
   return await new Promise((resolve) => {
-    video.oncanplaythrough = resolve;
+    if (video.readyState >= 3 || video.error) {
+      resolve();
+      return;
+    }
+    const finish = () => {
+      clearTimeout(timer);
+      video.removeEventListener('canplay', finish);
+      video.removeEventListener('error', finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, 15000);
+    video.addEventListener('canplay', finish, { once: true });
+    video.addEventListener('error', finish, { once: true });
   });
+}
+
+async function fetchVideoData(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    if (!response.ok) throw new Error('network');
+    return await response.json();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // Устанавливает прелоадер на время загрузки данных ✅
 function showPreloader(tmp, parent) {
+  removePreloader(parent, '.preloader');
   const node = tmp.content.cloneNode(true);
   parent.append(node);
   console.log('показал прелоадер');
@@ -199,7 +227,7 @@ function serializeFormData(form) {
 // Генерирует строку с фильтрами запросов в API в зависимости от данных из формы ✅
 function generateFilterRequest(endpoint, city, timeArray) {
   if (city) {
-    endpoint += `filters[city][$containsi]=${city}&`;
+    endpoint += `filters[city][$containsi]=${encodeURIComponent(city.trim())}&`;
   }
   if (timeArray) {
     timeArray.forEach((timeslot) => {
@@ -227,6 +255,7 @@ function chooseCurrentVideo({
           item.classList.remove(currentLinkClassName);
         });
         item.classList.add(currentLinkClassName);
+        videoContainer.querySelector('.error')?.remove();
         showPreloader(preloaderTmp, videoContainer);
         const vidoObj = videoData.find(
           (video) => String(video.id) === String(item.id)
@@ -238,6 +267,9 @@ function chooseCurrentVideo({
           posterUrl: vidoObj.poster.url,
         });
         await waitForReadyVideo(mainVideo);
+        if (mainVideo.error) {
+          showError(videoContainer, videoNotFoundTmp, 'Не удалось загрузить видео');
+        }
         await delay(preloaderWaitindTime);
         removePreloader(videoContainer, '.preloader');
         console.log('Переключил видео');
@@ -248,6 +280,7 @@ function chooseCurrentVideo({
 
 // вывожу интерфейс, когда видео не найдено ✅
 function showError(container, errorTemplate, errorMessage) {
+  container.querySelector('.error')?.remove();
   const node = errorTemplate.content.cloneNode(true);
   node.querySelector('.error__title').textContent = errorMessage;
   container.append(node);
@@ -276,7 +309,7 @@ function showMoreCards({
     let currentPage = dataArray.pagination.page;
     let urlToFetch = `${initialEndpoint}pagination[page]=${(currentPage += 1)}&`;
     try {
-      let data = await (await fetch(urlToFetch)).json();
+      let data = await fetchVideoData(urlToFetch);
       buttonInDOM.remove();
       cardsOnPageState = cardsOnPageState.concat(data.results);
       appendCards({
